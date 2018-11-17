@@ -30,7 +30,7 @@ contract FixedSupplyToken is ERC20Interface, Owned, ApproveAndCallFallBack {
         symbol = _symbol;
         name = _name;
         decimals = 18;
-        supply = _supply * 10**uint(decimals);
+        supply = _supply.mul(10**uint(decimals));
         balances[owner] = _supply;
         emit Transfer(address(0), owner, _supply);
     }

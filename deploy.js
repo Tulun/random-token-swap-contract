@@ -1,7 +1,13 @@
 const HDWalletProvider = require('truffle-hdwallet-provider');
 const Web3 = require('web3');
-const compiledContract = require("./build/Leaderboard.json");
+const compiledContract = require("./build/BasicToken.json");
 require('dotenv').config()
+
+console.log(process.argv);
+
+
+
+const TO_WEI = 10**18;
 
 const ropsten = `https://ropsten.infura.io/v3/${process.env.INFURA_API_KEY}`;
 const provider = new HDWalletProvider(
@@ -12,6 +18,13 @@ const provider = new HDWalletProvider(
 const web3 = new Web3(provider);
 const GWEI_TO_WEI = 10**9;
 
+// Configure deployment based on node args.
+let args = [];
+// node deploy.js <arg>
+if (process.argv[2] === "token") {
+  args = ["FUEL", "Fuel", 10000];
+}
+
 const deploy = async () => {
   const accounts = await web3.eth.getAccounts();
   console.log('attempting to deploy from account', accounts[0]);
@@ -20,9 +33,9 @@ const deploy = async () => {
   console.log('c', count, 'nonce', nonce);
 
   const result = await new web3.eth.Contract(JSON.parse(compiledContract.interface))
-    .deploy({ data: `0x${compiledContract.bytecode}`, arguments:["Ping Pong"] })
+    .deploy({ data: `0x${compiledContract.bytecode}`, arguments: args })
     .send({ 
-      gas: "3000000", 
+      gas: "7700000", 
       from: accounts[0],
     });
 
