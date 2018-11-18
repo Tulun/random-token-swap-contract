@@ -2,8 +2,11 @@
 
 ## V1
 
-- [x] Contract should be able to transfer ERC-20 Tokens (Partially implemented, not robust)
-- [ ] Should randomly send back a token to the user upon approval being permitted
+- [x] Contract should be able to transfer ERC-20 Tokens
+- [x] Should randomly send back a token to the user upon approval being permitted
+- [x] Owner can add new token addresses.
+- [ ] Random function needs to be improved to be closer to truly random.
+- [ ] Need an efficient way to handle zero balances of existing tokens.
 
 # Notes so far
 
