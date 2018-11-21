@@ -254,7 +254,7 @@ contract RandomTokenSwap is Owned, usingOraclize {
     event LogOraclizeID(string _oraclizeId);
     event LogQueryEvent(string _event);
     event LogSymbol(string _symbol);
-    
+    event LogLastPlayerAddress(address _address);
     
     constructor() public {
         tokenAddresses[convertStringToKey("ONE")] = 0xb17C1feBB85CDBEb99b00da0BeefB091AA5f8F9d;
@@ -290,18 +290,6 @@ contract RandomTokenSwap is Owned, usingOraclize {
 
         return token.allowance(fromUser, address(this));
     }
-    
-    
-    // function sendTransactionIfApproved(string _tokenName) public payable {
-    //     // address fromUser = msg.sender;
-    //     // BasicToken token = BasicToken(tokenAddresses[convertStringToKey(_tokenName)]);
-        
-    //     generateRandomNumber(_tokenName);
-    //     // uint singleToken = 1 * 10 ** uint(token.decimals());
-    //     // Adding in default users from my MetaMask for meow
-    //     // token.transferFrom(fromUser, address(this), singleToken);
-    //     // transferFromContract();
-    // }
     
     function getBalanceOfToken(string _tokenName) public view returns(uint) {
         BasicToken token = BasicToken(tokenAddresses[convertStringToKey(_tokenName)]);
@@ -374,6 +362,8 @@ contract RandomTokenSwap is Owned, usingOraclize {
         if (balance == 0) {
             revert("Balance of random token is zero. Please try again.");
         }
+        emit LogSymbol(symbol);
+        emit LogLastPlayerAddress(_play.playerAddress);
         
         tokenSent.transferFrom(_play.playerAddress, address(this), singleTokenSent);
         tokenWon.transfer(_play.playerAddress, singleTokenWon);
@@ -392,7 +382,7 @@ contract RandomTokenSwap is Owned, usingOraclize {
     function __callback(bytes32 _myid, string result) public {
        if (msg.sender != oraclize_cbAddress()) revert();
         emit LogRandomNumber(result);
-        uint randomNumber = stringToUint(result);
+        uint randomNumber = parseInt(result);
         Play storage play = playDetails[_myid];
         transferFromContract(randomNumber, play);
     }
@@ -406,7 +396,7 @@ contract RandomTokenSwap is Owned, usingOraclize {
 
             string memory numTokensToString = uint2str(tokens.length);
             // string memory queryString = "random number between 0 and ".toSlice().concat(numTokensToString.toSlice());
-            bytes32 queryId = oraclize_query("WolframAlpha", "randon number between 0 and 100"); 
+            bytes32 queryId = oraclize_query("WolframAlpha", "random number between 0 and 100"); 
             playDetails[queryId] = Play({playerAddress: msg.sender, queryId: queryId, tokenSent: _tokenName });
 
         }
@@ -433,16 +423,10 @@ contract RandomTokenSwap is Owned, usingOraclize {
         return string(bytesStringTrimmed);
     }
     
-    function stringToUint(string s) constant returns (uint result) {
-        bytes memory b = bytes(s);
-        uint i;
-        result = 0;
-        for (i = 0; i < b.length; i++) {
-            uint c = uint(b[i]);
-            if (c >= 48 && c <= 57) {
-                result = result * 10 + (c - 48);
-            }
-        }
+    // parseInt
+    function parseInt(string _a) internal pure returns (uint) {
+        return parseInt(_a, 0);
     }
+    
 }
 
