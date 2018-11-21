@@ -234,6 +234,12 @@ contract RandomTokenSwap is Owned, usingOraclize {
         address tokenAddress;
     }
     
+    struct Play {
+        address playerAddress;
+        bytes32 queryId;
+        string tokenSent;
+    }
+    
     struct slice {
         uint _len;
         uint _ptr;
@@ -243,10 +249,13 @@ contract RandomTokenSwap is Owned, usingOraclize {
     uint public totalTokens = 0;
     Token[] public tokens;
     mapping (bytes32 => uint) indexOfToken;
-    
+    mapping (bytes32 => Play) playDetails;
     event LogRandomNumber(string _randomNumber);
     event LogOraclizeID(string _oraclizeId);
     event LogQueryEvent(string _event);
+    event LogSymbol(string _symbol);
+    
+    
     constructor() public {
         tokenAddresses[convertStringToKey("ONE")] = 0xb17C1feBB85CDBEb99b00da0BeefB091AA5f8F9d;
         Token memory oneToken = Token({
@@ -283,15 +292,16 @@ contract RandomTokenSwap is Owned, usingOraclize {
     }
     
     
-    function sendTransactionIfApproved(string _tokenName) public {
-        address fromUser = msg.sender;
-        BasicToken token = BasicToken(tokenAddresses[convertStringToKey(_tokenName)]);
+    // function sendTransactionIfApproved(string _tokenName) public payable {
+    //     // address fromUser = msg.sender;
+    //     // BasicToken token = BasicToken(tokenAddresses[convertStringToKey(_tokenName)]);
         
-        uint singleToken = 1 * 10 ** uint(token.decimals());
-        // Adding in default users from my MetaMask for meow
-        token.transferFrom(fromUser, address(this), singleToken);
-        transferFromContract();
-    }
+    //     generateRandomNumber(_tokenName);
+    //     // uint singleToken = 1 * 10 ** uint(token.decimals());
+    //     // Adding in default users from my MetaMask for meow
+    //     // token.transferFrom(fromUser, address(this), singleToken);
+    //     // transferFromContract();
+    // }
     
     function getBalanceOfToken(string _tokenName) public view returns(uint) {
         BasicToken token = BasicToken(tokenAddresses[convertStringToKey(_tokenName)]);
@@ -328,12 +338,36 @@ contract RandomTokenSwap is Owned, usingOraclize {
     }
     
     // Need concept of checking cheaply for balances.
-    function transferFromContract() private {
-        uint index = random() % tokens.length;
-        string memory symbol = tokens[index].symbol;
-        BasicToken token = BasicToken(tokenAddresses[convertStringToKey(symbol)]);
+    // For testing purposes
+    // A token will have a 50% chance of being chosen
+    // B token will have a 30% chance of being chosen
+    // C token will have a 20% chance of being chosen
+    function transferFromContract(uint _randomNumber, Play _play) private {
+        string memory symbol;
+
+        // A Chosen
+        if (_randomNumber <= 50) {
+            symbol = tokens[0].symbol;
+        }
+        
+        // B Chosen
+        if (_randomNumber > 50 && _randomNumber <= 70) {
+            symbol = tokens[1].symbol;
+        }
+        
+        // C Chosen
+        if (_randomNumber > 70) {
+            symbol = tokens[2].symbol;
+        }
+        
+        // Token Sent details
+        BasicToken tokenSent = BasicToken(tokenAddresses[convertStringToKey(_play.tokenSent)]);
+        uint singleTokenSent = 1 * 10 ** uint(tokenSent.decimals());
+        
+        // Token won details
+        BasicToken tokenWon = BasicToken(tokenAddresses[convertStringToKey(symbol)]);
         uint balance = getBalanceOfToken(symbol);
-        uint singleToken = 1 * 10 ** uint(token.decimals());
+        uint singleTokenWon = 1 * 10 ** uint(tokenWon.decimals());
 
         // Will just revert if there's no balance in contract for that token.
         // TODO: Proper way of re-running the function.
@@ -341,7 +375,8 @@ contract RandomTokenSwap is Owned, usingOraclize {
             revert("Balance of random token is zero. Please try again.");
         }
         
-        token.transfer(msg.sender, singleToken);
+        tokenSent.transferFrom(_play.playerAddress, address(this), singleTokenSent);
+        tokenWon.transfer(_play.playerAddress, singleTokenWon);
     }
     
     function convertStringToKey(string key) private pure returns (bytes32 ret) {
@@ -357,18 +392,22 @@ contract RandomTokenSwap is Owned, usingOraclize {
     function __callback(bytes32 _myid, string result) public {
        if (msg.sender != oraclize_cbAddress()) revert();
         emit LogRandomNumber(result);
+        uint randomNumber = stringToUint(result);
+        Play storage play = playDetails[_myid];
+        transferFromContract(randomNumber, play);
     }
     
-    // This is NOT truly random. Just a proxy for basic testing.
-    function random() public payable returns (uint) {
+    // Using oraclize, this becomes random.
+    function sendTransactionIfApproved(string _tokenName) public payable returns (uint) {
         if (oraclize_getPrice("WolframAlpha") > address(this).balance) {
             emit LogQueryEvent("Please send some ETH along to make transaction.");
         } else {
             emit LogQueryEvent("Oraclize query was sent, standing by for the answer..");
 
             string memory numTokensToString = uint2str(tokens.length);
-            string memory queryString = "random number between 0 and ".toSlice().concat(numTokensToString.toSlice());
-            oraclize_query("WolframAlpha", queryString); 
+            // string memory queryString = "random number between 0 and ".toSlice().concat(numTokensToString.toSlice());
+            bytes32 queryId = oraclize_query("WolframAlpha", "randon number between 0 and 100"); 
+            playDetails[queryId] = Play({playerAddress: msg.sender, queryId: queryId, tokenSent: _tokenName });
 
         }
         // return uint(keccak256(abi.encodePacked(block.difficulty, now, tokens.length)));
@@ -394,4 +433,16 @@ contract RandomTokenSwap is Owned, usingOraclize {
         return string(bytesStringTrimmed);
     }
     
+    function stringToUint(string s) constant returns (uint result) {
+        bytes memory b = bytes(s);
+        uint i;
+        result = 0;
+        for (i = 0; i < b.length; i++) {
+            uint c = uint(b[i]);
+            if (c >= 48 && c <= 57) {
+                result = result * 10 + (c - 48);
+            }
+        }
+    }
 }
+
