@@ -246,7 +246,7 @@ contract RandomTokenSwap is Owned, usingOraclize {
     
     event LogRandomNumber(string _randomNumber);
     event LogOraclizeID(string _oraclizeId);
-    
+    event LogQueryEvent(string _event);
     constructor() public {
         tokenAddresses[convertStringToKey("ONE")] = 0xb17C1feBB85CDBEb99b00da0BeefB091AA5f8F9d;
         Token memory oneToken = Token({
@@ -356,99 +356,42 @@ contract RandomTokenSwap is Owned, usingOraclize {
     
     function __callback(bytes32 _myid, string result) public {
        if (msg.sender != oraclize_cbAddress()) revert();
-        emit LogOraclizeID(bytes32ToString(_myid));
         emit LogRandomNumber(result);
     }
     
     // This is NOT truly random. Just a proxy for basic testing.
     function random() public payable returns (uint) {
-        // return uint(keccak256(abi.encodePacked(block.difficulty, now, tokens.length)));
-        string memory numTokensToString = uint2str(tokens.length);
-        
-        string memory queryString = "random number between 0 and ".toSlice().concat(numTokensToString.toSlice());
-        oraclize_query("WolframAlpha", queryString);
-    }
-    
-function bytes32ToString(bytes32 x) internal pure returns (string) {
-    bytes memory bytesString = new bytes(32);
-    uint charCount = 0;
-    for (uint j = 0; j < 32; j++) {
-        byte char = byte(bytes32(uint(x) * 2 ** (8 * j)));
-        if (char != 0) {
-            bytesString[charCount] = char;
-            charCount++;
-        }
-    }
-    bytes memory bytesStringTrimmed = new bytes(charCount);
-    for (j = 0; j < charCount; j++) {
-        bytesStringTrimmed[j] = bytesString[j];
-    }
-    return string(bytesStringTrimmed);
-}
-    
-    //     /*
-    //  * @dev Returns a newly allocated string containing the concatenation of
-    //  *      `self` and `other`.
-    //  * @param self The first slice to concatenate.
-    //  * @param other The second slice to concatenate.
-    //  * @return The concatenation of the two strings.
-    //  */
-     
-    //      function memcpy(uint dest, uint src, uint len) private pure {
-    //     // Copy word-length chunks while possible
-    //     for(; len >= 32; len -= 32) {
-    //         assembly {
-    //             mstore(dest, mload(src))
-    //         }
-    //         dest += 32;
-    //         src += 32;
-    //     }
+        if (oraclize_getPrice("WolframAlpha") > address(this).balance) {
+            emit LogQueryEvent("Please send some ETH along to make transaction.");
+        } else {
+            emit LogQueryEvent("Oraclize query was sent, standing by for the answer..");
 
-    //     // Copy remaining bytes
-    //     uint mask = 256 ** (32 - len) - 1;
-    //     assembly {
-    //         let srcpart := and(mload(src), not(mask))
-    //         let destpart := and(mload(dest), mask)
-    //         mstore(dest, or(destpart, srcpart))
-    //     }
-    // }
+            string memory numTokensToString = uint2str(tokens.length);
+            string memory queryString = "random number between 0 and ".toSlice().concat(numTokensToString.toSlice());
+            oraclize_query("WolframAlpha", queryString); 
+
+        }
+        // return uint(keccak256(abi.encodePacked(block.difficulty, now, tokens.length)));
+
+    }
     
-    //     /*
-    //  * @dev Returns a slice containing the entire string.
-    //  * @param self The string to make a slice from.
-    //  * @return A newly allocated slice containing the entire string.
-    //  */
-    // function toSlice(string memory self) internal pure returns (slice memory) {
-    //     uint ptr;
-    //     assembly {
-    //         ptr := add(self, 0x20)
-    //     }
-    //     return slice(bytes(self).length, ptr);
-    // }
+    function bytes32ToString(bytes32 x) internal pure returns (string) {
+        bytes memory bytesString = new bytes(32);
+        uint charCount = 0;
+        for (uint j = 0; j < 32; j++) {
+            byte char = byte(bytes32(uint(x) * 2 ** (8 * j)));
+            if (char != 0) {
+                bytesString[charCount] = char;
+                charCount++;
+            }
+        }
+        
+        bytes memory bytesStringTrimmed = new bytes(charCount);
+        for (j = 0; j < charCount; j++) {
+            bytesStringTrimmed[j] = bytesString[j];
+        }
+        
+        return string(bytesStringTrimmed);
+    }
     
-    // function concat(slice memory self, slice memory other) internal pure returns (string memory) {
-    //     string memory ret = new string(self._len + other._len);
-    //     uint retptr;
-    //     assembly { retptr := add(ret, 32) }
-    //     memcpy(retptr, self._ptr, self._len);
-    //     memcpy(retptr + self._len, other._ptr, other._len);
-    //     return ret;
-    // }
-    
-    // function uint2str(uint i) internal pure returns (string){
-    //     if (i == 0) return "0";
-    //         uint j = i;
-    //     uint length;
-    //     while (j != 0){
-    //         length++;
-    //         j /= 10;
-    //     }
-    //     bytes memory bstr = new bytes(length);
-    //     uint k = length - 1;
-    //     while (i != 0){
-    //         bstr[k--] = byte(48 + i % 10);
-    //         i /= 10;
-    //     }
-    //     return string(bstr);
-    // }
 }
