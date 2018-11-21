@@ -197,6 +197,18 @@ const abi = [
 		"anonymous": false,
 		"inputs": [
 			{
+				"indexed": false,
+				"name": "_result",
+				"type": "uint256"
+			}
+		],
+		"name": "LogResultWithBonus",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
 				"indexed": true,
 				"name": "_from",
 				"type": "address"
@@ -352,5 +364,6 @@ const abi = [
 		"type": "function"
 	}
 ]
+
 // Access to our contract that exists on the blockchain.
 export default new web3.eth.Contract(abi, address);

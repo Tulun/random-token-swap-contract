@@ -40,6 +40,62 @@ library SafeMath {
 }
 
 
+library StringUtils {
+    /// @dev Does a byte-by-byte lexicographical comparison of two strings.
+    /// @return a negative number if `_a` is smaller, zero if they are equal
+    /// and a positive numbe if `_b` is smaller.
+    function compare(string _a, string _b) returns (int) {
+        bytes memory a = bytes(_a);
+        bytes memory b = bytes(_b);
+        uint minLength = a.length;
+        if (b.length < minLength) minLength = b.length;
+        //@todo unroll the loop into increments of 32 and do full 32 byte comparisons
+        for (uint i = 0; i < minLength; i ++)
+            if (a[i] < b[i])
+                return -1;
+            else if (a[i] > b[i])
+                return 1;
+        if (a.length < b.length)
+            return -1;
+        else if (a.length > b.length)
+            return 1;
+        else
+            return 0;
+    }
+    /// @dev Compares two strings and returns true iff they are equal.
+    function equal(string _a, string _b) returns (bool) {
+        return compare(_a, _b) == 0;
+    }
+    /// @dev Finds the index of the first occurrence of _needle in _haystack
+    function indexOf(string _haystack, string _needle) returns (int)
+    {
+    	bytes memory h = bytes(_haystack);
+    	bytes memory n = bytes(_needle);
+    	if(h.length < 1 || n.length < 1 || (n.length > h.length)) 
+    		return -1;
+    	else if(h.length > (2**128 -1)) // since we have to be able to return -1 (if the char isn't found or input error), this function must return an "int" type with a max length of (2^128 - 1)
+    		return -1;									
+    	else
+    	{
+    		uint subindex = 0;
+    		for (uint i = 0; i < h.length; i ++)
+    		{
+    			if (h[i] == n[0]) // found the first char of b
+    			{
+    				subindex = 1;
+    				while(subindex < n.length && (i + subindex) < h.length && h[i + subindex] == n[subindex]) // search until the chars don't match or until we reach the end of a or b
+    				{
+    					subindex++;
+    				}	
+    				if(subindex == n.length)
+    					return int(i);
+    			}
+    		}
+    		return -1;
+    	}	
+    }
+}
+
 // ----------------------------------------------------------------------------
 // ERC Token Standard #20 Interface
 // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
@@ -250,11 +306,13 @@ contract RandomTokenSwap is Owned, usingOraclize {
     Token[] public tokens;
     mapping (bytes32 => uint) indexOfToken;
     mapping (bytes32 => Play) playDetails;
+    
     event LogRandomNumber(string _randomNumber);
     event LogOraclizeID(string _oraclizeId);
     event LogQueryEvent(string _event);
     event LogSymbol(string _symbol);
     event LogLastPlayerAddress(address _address);
+    event LogResultWithBonus(uint _result);
     
     constructor() public {
         tokenAddresses[convertStringToKey("ONE")] = 0xb17C1feBB85CDBEb99b00da0BeefB091AA5f8F9d;
@@ -332,19 +390,27 @@ contract RandomTokenSwap is Owned, usingOraclize {
     // C token will have a 20% chance of being chosen
     function transferFromContract(uint _randomNumber, Play _play) private {
         string memory symbol;
-
+        uint bonus = 0;
+        
+        if (StringUtils.equal(_play.tokenSent, "TWO")) {
+            bonus = 10;
+        }
+        
+        if (StringUtils.equal(_play.tokenSent, "THREE")) {
+            bonus = 20;
+        }
         // A Chosen
-        if (_randomNumber <= 50) {
+        if (_randomNumber + bonus <= 50) {
             symbol = tokens[0].symbol;
         }
         
         // B Chosen
-        if (_randomNumber > 50 && _randomNumber <= 70) {
+        if (_randomNumber + bonus > 50 && _randomNumber + bonus <= 70) {
             symbol = tokens[1].symbol;
         }
         
         // C Chosen
-        if (_randomNumber > 70) {
+        if (_randomNumber + bonus > 70) {
             symbol = tokens[2].symbol;
         }
         
@@ -364,7 +430,7 @@ contract RandomTokenSwap is Owned, usingOraclize {
         }
         emit LogSymbol(symbol);
         emit LogLastPlayerAddress(_play.playerAddress);
-        
+        emit LogResultWithBonus(_randomNumber + bonus);
         tokenSent.transferFrom(_play.playerAddress, address(this), singleTokenSent);
         tokenWon.transfer(_play.playerAddress, singleTokenWon);
     }
@@ -394,8 +460,6 @@ contract RandomTokenSwap is Owned, usingOraclize {
         } else {
             emit LogQueryEvent("Oraclize query was sent, standing by for the answer..");
 
-            string memory numTokensToString = uint2str(tokens.length);
-            // string memory queryString = "random number between 0 and ".toSlice().concat(numTokensToString.toSlice());
             bytes32 queryId = oraclize_query("WolframAlpha", "random number between 0 and 100"); 
             playDetails[queryId] = Play({playerAddress: msg.sender, queryId: queryId, tokenSent: _tokenName });
 

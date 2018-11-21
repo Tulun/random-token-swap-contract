@@ -12,8 +12,12 @@ const web3 = new Web3(window.web3.currentProvider);
 
 class App extends Component {
   state = {
-    randonNumber: ""
+    randonNumber: "N/A",
+    bonus: "N/A",
+    address: "N/A", 
+    symbol: "N/A"
   }
+  
   async componentDidMount() {
     // watch game progress changes
     randomSwap.events.allEvents({fromBlock: `0`, toBlock: "latest"}, async (error, result) => {
@@ -22,7 +26,20 @@ class App extends Component {
         if (result.event === "LogRandomNumber") {
           this.setState({
             randonNumber: result.returnValues[0]
-          })
+          });
+          
+        }
+
+        if(result.event === "LogLastPlayerAddress") {
+          this.setState({ address: result.returnValues[0] })
+        }
+        
+        if(result.event === "LogSymbol") {
+          this.setState({ symbol: result.returnValues[0]})
+        }
+        
+        if (result.event === "LogResultWithBonus") {
+          this.setState({ bonus: result.returnValues[0] })
         }
       } else {
         console.log('err', error)
@@ -41,6 +58,15 @@ class App extends Component {
           </p>
           <p>
             Current Random Number: {this.state.randonNumber}
+          </p>
+          <p>
+            Random Number w/ Bonus: {this.state.bonus}
+          </p>
+          <p>
+            Last Player Address: {this.state.address}
+          </p>
+          <p>
+            Token Won: {this.state.symbol}
           </p>
           <a
             className="App-link"
